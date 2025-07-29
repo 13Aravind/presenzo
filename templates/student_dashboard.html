@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard | Presenzo</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Apply Inter font globally */
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    /* Custom scrollbar for attendance table if it overflows */
+    .overflow-x-auto::-webkit-scrollbar {
+      height: 8px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 10px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-tr from-indigo-50 to-purple-100 min-h-screen flex flex-col items-center py-8 px-4">
+
+  <div class="w-full max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl space-y-8">
+
+    <!-- Header Section -->
+    <header class="flex justify-between items-center pb-4 border-b border-gray-200">
+      <h1 class="text-3xl font-extrabold text-indigo-700">Welcome, <span class="text-purple-600">{{ student.name }}</span>!</h1>
+      <a href="{{ url_for('logout') }}" class="px-6 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors shadow-md">
+        Logout
+      </a>
+    </header>
+
+    <!-- Flash Messages Display -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6">
+          {% for category, message in messages %}
+            <div class="p-3 mb-2 rounded-lg text-sm
+              {% if category == 'error' %} bg-red-100 text-red-700 border border-red-200
+              {% elif category == 'success' %} bg-green-100 text-green-700 border border-green-200
+              {% elif category == 'warning' %} bg-yellow-100 text-yellow-700 border border-yellow-200
+              {% else %} bg-blue-100 text-blue-700 border border-blue-200
+              {% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Attendance Summary -->
+    <section class="bg-indigo-50 p-6 rounded-lg shadow-inner text-center">
+      <p class="text-lg font-semibold text-indigo-800">Overall Attendance Percentage</p>
+      <p class="text-5xl font-extrabold text-indigo-900 mt-2">{{ "%.2f"|format(percent) }}<span class="text-3xl">%</span></p>
+    </section>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+      <div class="bg-gray-100 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-500">Total Possible Periods</p>
+        <p class="text-2xl font-bold text-gray-700 mt-1">{{ total_possible_periods }}</p>
+      </div>
+      <div class="bg-gray-100 p-4 rounded-lg shadow">
+        <p class="text-sm text-gray-500">Total Periods Attended</p>
+        <p class="text-2xl font-bold text-gray-700 mt-1">{{ present_period_count_sum }}</p>
+      </div>
+    </div>
+
+    <!-- Classes Needed to Reach Section -->
+    <section class="bg-purple-50 p-6 rounded-lg shadow-inner">
+      <h2 class="text-2xl font-bold text-purple-700 mb-4 text-center">Periods Needed to Reach Target Attendance:</h2>
+      <ul class="space-y-3">
+        {% for target, count in needed.items() %}
+          <li class="flex justify-between items-center p-3 rounded-md border
+            {% if target == 75 %} bg-green-50 border-green-300
+            {% elif target == 80 %} bg-yellow-50 border-yellow-300
+            {% elif target == 85 %} bg-blue-50 border-blue-300
+            {% elif target == 90 %} bg-pink-50 border-pink-300
+            {% endif %}">
+            <span class="font-medium text-gray-700">{{ target }}% Attendance</span>
+            <span class="font-bold
+              {% if target == 75 %} text-green-800
+              {% elif target == 80 %} text-yellow-800
+              {% elif target == 85 %} text-blue-800
+              {% elif target == 90 %} text-pink-800
+              {% endif %}">
+              {% if count == 0 %}
+                  Already achieved!
+              {% elif count == "infinity_val" %} {# CHANGED HERE #}
+                  Impossible to reach.
+              {% else %}
+                  {{ count }} more periods
+              {% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <!-- Detailed Attendance Table -->
+    <section class="bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold text-indigo-700 mb-4 text-center">Your Detailed Attendance</h2>
+      {% if attendances %}
+        <div class="overflow-x-auto rounded-lg shadow-md border border-gray-200">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period (Start-End)</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periods Count</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {% for attendance in attendances | sort(attribute='date', reverse=true) %} {# Sort by date, newest first #}
+                  {% set period_slot = attendance.period_slot %}
+                  {% if period_slot %}
+                      <tr>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ attendance.date.strftime('%Y-%m-%d') }}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ period_slot.start_time.strftime('%H:%M') }} - {{ period_slot.end_time.strftime('%H:%M') }}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ period_slot.period_count }}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold
+                            {% if attendance.status == 'Present' %} text-green-600
+                            {% elif attendance.status == 'Absent' %} text-red-600
+                            {% else %} text-yellow-600
+                            {% endif %}">
+                            {{ attendance.status }}
+                          </td>
+                      </tr>
+                  {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-center text-gray-500">No attendance records found yet.</p>
+      {% endif %}
+    </section>
+
+  </div>
+
+  <footer class="mt-10 text-gray-500 text-sm text-center select-none">
+    Made with ❤️ by Aravind — Presenzo 2025
+  </footer>
+
+</body>
+</html>

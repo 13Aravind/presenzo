@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presenzo | Welcome</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Apply Inter font globally */
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Animation for fade-in effect */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up { animation: fadeInUp 0.8s ease forwards; }
+  </style>
+</head>
+<body class="bg-gradient-to-tr from-indigo-50 to-purple-100 min-h-screen flex flex-col justify-center items-center px-4">
+
+  <main class="bg-white p-10 rounded-xl shadow-xl w-full max-w-md fade-in-up text-center">
+    <h1 class="text-3xl font-extrabold text-indigo-700 mb-6">Welcome to <span class="text-purple-600">Presenzo</span></h1>
+    <p class="mb-8 text-gray-600">Please choose your role to continue:</p>
+
+    <div class="space-y-4">
+      <a href="/login?role=student" class="block w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-shadow shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+        I'm a Student
+      </a>
+      <a href="/login?role=teacher" class="block w-full py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-shadow shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50">
+        I'm a Teacher
+      </a>
+    </div>
+
+    <p class="mt-6 text-sm text-gray-500">Made with ❤️ by Aravind — Presenzo 2025</p>
+  </main>
+
+</body>
+</html>

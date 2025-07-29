@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard - Presenzo</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Apply Inter font globally */
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    /* Custom scrollbar for attendance table if it overflows */
+    .overflow-x-auto::-webkit-scrollbar {
+      height: 8px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 10px;
+    }
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-tr from-indigo-50 to-purple-100 min-h-screen flex flex-col items-center py-8 px-4">
+
+  <div class="w-full max-w-4xl bg-white p-8 rounded-xl shadow-xl space-y-8">
+
+    <!-- Header Section -->
+    <header class="text-center pb-4 border-b border-gray-200">
+      <h1 class="text-4xl font-extrabold text-indigo-700 mb-2">Welcome, <span class="text-purple-600">{{ teacher.name }}</span>!</h1>
+      <p class="text-lg text-gray-600">Branch: {{ teacher.branch }} | Section: {{ teacher.section }}</p>
+      <a href="{{ url_for('logout') }}" class="mt-4 inline-block px-6 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors shadow-md">
+        Logout
+      </a>
+    </header>
+
+    <!-- Flash Messages Display -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6">
+          {% for category, message in messages %}
+            <div class="p-3 mb-2 rounded-lg text-sm
+              {% if category == 'error' %} bg-red-100 text-red-700 border border-red-200
+              {% elif category == 'success' %} bg-green-100 text-green-700 border border-green-200
+              {% elif category == 'warning' %} bg-yellow-100 text-yellow-700 border border-yellow-200
+              {% else %} bg-blue-100 text-blue-700 border border-blue-200
+              {% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Schedule Periods Section -->
+    <section class="bg-indigo-50 p-6 rounded-lg shadow-inner">
+      <h2 class="text-2xl font-bold text-indigo-700 mb-6 text-center">Schedule Periods for a Date</h2>
+      <form action="{{ url_for('schedule') }}" method="POST" class="space-y-5">
+        <div>
+          <label for="schedule_date" class="block mb-2 font-semibold text-gray-700">Select Date:</label>
+          <input type="date" id="schedule_date" name="date" required
+                 class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div id="period-slots-container" class="space-y-4">
+          <!-- Initial period slot -->
+          <div class="period-slot flex flex-col sm:flex-row sm:items-end gap-3 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="flex-grow">
+              <label for="start_time_0" class="block mb-1 text-sm font-medium text-gray-600">Start Time:</label>
+              <input type="time" id="start_time_0" name="start_time" required
+                     class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+            </div>
+            <div class="flex-grow">
+              <label for="end_time_0" class="block mb-1 text-sm font-medium text-gray-600">End Time:</label>
+              <input type="time" id="end_time_0" name="end_time" required
+                     class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+            </div>
+            <button type="button" onclick="removePeriodSlot(this)"
+                    class="mt-2 sm:mt-0 px-4 py-2 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors shadow-sm">
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <button type="button" onclick="addPeriodSlot()"
+                class="w-full sm:w-auto px-6 py-2 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition-colors shadow-md">
+          Add Another Period Slot
+        </button>
+        <button type="submit"
+                class="w-full sm:w-auto px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+          Save Schedule
+        </button>
+      </form>
+    </section>
+
+    <!-- Mark Attendance Section -->
+    <section class="bg-purple-50 p-6 rounded-lg shadow-inner">
+      <h2 class="text-2xl font-bold text-purple-700 mb-6 text-center">Mark Attendance for Students</h2>
+      <form action="{{ url_for('mark_attendance') }}" method="POST" class="space-y-5">
+        <div>
+          <label for="attendance_date" class="block mb-2 font-semibold text-gray-700">Select Date for Attendance:</label>
+          <input type="date" id="attendance_date" name="date" required
+                 class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+
+        <button type="button" onclick="loadAttendanceTable()"
+                class="w-full sm:w-auto px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition-colors shadow-md">
+          Load Schedule & Students
+        </button>
+
+        <div id="attendance-table-container" class="mt-6">
+          <!-- Attendance table will be loaded here by JavaScript -->
+          <p class="text-center text-gray-500" id="attendance-message">Select a date and click "Load Schedule & Students" to mark attendance.</p>
+        </div>
+
+        <button type="submit" id="submit-attendance-btn"
+                class="w-full sm:w-auto px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-md hidden">
+          Submit Attendance
+        </button>
+      </form>
+    </section>
+
+  </div>
+
+  <footer class="mt-10 text-gray-500 text-sm select-none">
+    Made with ❤️ by Aravind — Presenzo 2025
+  </footer>
+
+  <script>
+    let slotCounter = 0;
+
+    // Function to add a new period slot input group
+    function addPeriodSlot() {
+      slotCounter++;
+      const container = document.getElementById('period-slots-container');
+      const newSlot = document.createElement('div');
+      newSlot.classList.add('period-slot', 'flex', 'flex-col', 'sm:flex-row', 'sm:items-end', 'gap-3', 'p-4', 'bg-white', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-200');
+      newSlot.innerHTML = `
+        <div class="flex-grow">
+          <label for="start_time_${slotCounter}" class="block mb-1 text-sm font-medium text-gray-600">Start Time:</label>
+          <input type="time" id="start_time_${slotCounter}" name="start_time" required
+                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+        </div>
+        <div class="flex-grow">
+          <label for="end_time_${slotCounter}" class="block mb-1 text-sm font-medium text-gray-600">End Time:</label>
+          <input type="time" id="end_time_${slotCounter}" name="end_time" required
+                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-purple-500">
+        </div>
+        <button type="button" onclick="removePeriodSlot(this)"
+                class="mt-2 sm:mt-0 px-4 py-2 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors shadow-sm">
+          Remove
+        </button>
+      `;
+      container.appendChild(newSlot);
+    }
+
+    // Function to remove a period slot input group
+    function removePeriodSlot(button) {
+      // Ensure at least one slot remains
+      const container = document.getElementById('period-slots-container');
+      if (container.children.length > 1) {
+        button.closest('.period-slot').remove();
+      } else {
+        alert("You must have at least one period slot.");
+      }
+    }
+
+    // Function to load attendance table dynamically
+    async function loadAttendanceTable() {
+      const dateInput = document.getElementById('attendance_date');
+      const selectedDate = dateInput.value;
+      const tableContainer = document.getElementById('attendance-table-container');
+      const submitBtn = document.getElementById('submit-attendance-btn');
+      const messageElement = document.getElementById('attendance-message');
+
+      if (!selectedDate) {
+        alert('Please select a date for attendance.');
+        return;
+      }
+
+      // Show loading state
+      tableContainer.innerHTML = '<p class="text-center text-indigo-600">Loading schedule and students...</p>';
+      submitBtn.classList.add('hidden');
+      messageElement.classList.add('hidden');
+
+      try {
+        // Fetch data from a new endpoint (we'll need to add this to app.py)
+        const response = await fetch(`/api/teacher/attendance_data?date=${selectedDate}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (data.error) {
+          tableContainer.innerHTML = `<p class="text-center text-red-600">${data.error}</p>`;
+          return;
+        }
+
+        const students = data.students;
+        const schedule = data.schedule; // This will be the PeriodSlot data for the date
+
+        if (!schedule || schedule.length === 0) {
+          tableContainer.innerHTML = `<p class="text-center text-gray-500">No schedule found for ${selectedDate}. Please create one first.</p>`;
+          return;
+        }
+        if (students.length === 0) {
+            tableContainer.innerHTML = `<p class="text-center text-gray-500">No students registered under your branch and section.</p>`;
+            return;
+        }
+
+        let tableHtml = `
+          <div class="overflow-x-auto rounded-lg shadow-md border border-gray-200">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+        `;
+
+        // Add period slot headers
+        schedule.sort((a, b) => {
+            const timeA = new Date(`2000/01/01 ${a.start_time}`);
+            const timeB = new Date(`2000/01/01 ${b.start_time}`);
+            return timeA - timeB;
+        }).forEach(slot => {
+            tableHtml += `<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            P${slot.period_count} (${slot.start_time.substring(0, 5)}-${slot.end_time.substring(0, 5)})
+                          </th>`;
+        });
+
+        tableHtml += `
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+        `;
+
+        // Add student rows with attendance dropdowns
+        students.forEach(student => {
+          tableHtml += `
+            <tr>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${student.rollno}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${student.name}</td>
+          `;
+          schedule.forEach(slot => {
+            const currentStatus = student.attendance[slot.id] || 'Absent'; // Default to Absent
+            tableHtml += `
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <select name="status_${student.id}_${slot.id}"
+                        class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                  <option value="Present" ${currentStatus === 'Present' ? 'selected' : ''}>Present</option>
+                  <option value="Absent" ${currentStatus === 'Absent' ? 'selected' : ''}>Absent</option>
+                  <option value="Leave" ${currentStatus === 'Leave' ? 'selected' : ''}>Leave</option>
+                </select>
+              </td>
+            `;
+          });
+          tableHtml += `</tr>`;
+        });
+
+        tableHtml += `
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        tableContainer.innerHTML = tableHtml;
+        submitBtn.classList.remove('hidden'); // Show submit button
+        messageElement.classList.add('hidden'); // Hide initial message
+
+      } catch (error) {
+        console.error('Error loading attendance data:', error);
+        tableContainer.innerHTML = `<p class="text-center text-red-600">Failed to load attendance data. Please try again.</p>`;
+        submitBtn.classList.add('hidden');
+        messageElement.classList.remove('hidden');
+      }
+    }
+
+    // Set today's date as default for schedule and attendance forms on page load
+    document.addEventListener('DOMContentLoaded', (event) => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayFormatted = `${year}-${month}-${day}`;
+
+      document.getElementById('schedule_date').value = todayFormatted;
+      document.getElementById('attendance_date').value = todayFormatted;
+
+      // Automatically load attendance table for today when dashboard loads
+      loadAttendanceTable();
+    });
+  </script>
+</body>
+</html>
